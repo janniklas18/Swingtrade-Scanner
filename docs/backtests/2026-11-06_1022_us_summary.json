@@ -1,0 +1,147 @@
+{
+  "file": "2026-11-06_1022_us.html",
+  "label": "USA (S&P 500)",
+  "date": "06.11.2026 10:22",
+  "source": "yahoo",
+  "n_oos": 2068,
+  "exp_oos": "+0,04 R",
+  "verdict": "Positiv, aber nicht belegt",
+  "stats": {
+    "all": {
+      "n": 6111,
+      "hit_rate": 0.4482081492390771,
+      "avg_win": 1.3208603784601447,
+      "avg_loss": -0.9367378302699174,
+      "expectancy": 0.07513608459043936,
+      "ci_low": 0.04355561693188239,
+      "ci_high": 0.1080590285582105,
+      "profit_factor": 1.1453634487232658,
+      "total_r": 459.1566129321749
+    },
+    "is": {
+      "n": 4043,
+      "hit_rate": 0.4605490972050458,
+      "avg_win": 1.2951047575243275,
+      "avg_loss": -0.9359163320619677,
+      "expectancy": 0.09157841659241803,
+      "ci_low": 0.05534007616484746,
+      "ci_high": 0.13087302743270693,
+      "profit_factor": 1.181386173906229,
+      "total_r": 370.2515382831461
+    },
+    "oos": {
+      "n": 2068,
+      "hit_rate": 0.42408123791102514,
+      "avg_win": 1.37554335016196,
+      "avg_loss": -0.9382421859303192,
+      "expectancy": 0.04299084847631946,
+      "ci_low": -0.013362588604375955,
+      "ci_high": 0.09837145428938664,
+      "profit_factor": 1.0795609267636128,
+      "total_r": 88.90507464902865
+    }
+  },
+  "random_oos_mean": 0.07650069696967741,
+  "portfolio": {
+    "all": {
+      "total_return": 2.692710682740042,
+      "cagr": 0.09733511442052212,
+      "max_dd": -0.16681161467424976,
+      "volatility": 0.12784277576162423,
+      "sharpe": 0.7925640856345421
+    },
+    "is": {
+      "total_return": 1.5314457803947263,
+      "cagr": 0.10600520343567155,
+      "max_dd": -0.16681161467424976,
+      "volatility": 0.12824816150463014,
+      "sharpe": 0.8513475178450156
+    },
+    "oos": {
+      "total_return": 0.4677371091365685,
+      "cagr": 0.08254820750648517,
+      "max_dd": -0.12582112683020297,
+      "volatility": 0.1271314432902914,
+      "sharpe": 0.6896541812973133
+    }
+  },
+  "config": {
+    "backtest": {
+      "start": "2012-01-01",
+      "in_sample_end": "2021-12-31",
+      "initial_capital": 100000,
+      "risk_per_trade": 0.01,
+      "max_positions": 5,
+      "max_per_sector": 2,
+      "max_position_pct": 0.25,
+      "random_benchmark_runs": 20,
+      "bootstrap_runs": 2000
+    },
+    "markets": {
+      "de": {
+        "label": "Deutschland (DAX, MDAX, SDAX)",
+        "universes": [
+          "dax",
+          "mdax",
+          "sdax"
+        ],
+        "index": "^GDAXI",
+        "index_label": "DAX",
+        "currency": "EUR",
+        "min_turnover": 5000000,
+        "cost_per_side_bps": 10,
+        "commission_per_trade": 1.0
+      },
+      "us": {
+        "label": "USA (S&P 500)",
+        "universes": [
+          "sp500"
+        ],
+        "index": "^GSPC",
+        "index_label": "S&P 500",
+        "currency": "USD",
+        "min_turnover": 20000000,
+        "cost_per_side_bps": 5,
+        "commission_per_trade": 1.0
+      }
+    },
+    "filters": {
+      "regime_sma": 200,
+      "trend_fast_sma": 50,
+      "trend_slow_sma": 200,
+      "atr_period": 14,
+      "atr_pct_min": 1.5,
+      "atr_pct_max": 6.0,
+      "min_price": 5.0,
+      "earnings_blackout": true
+    },
+    "setups": {
+      "breakout": {
+        "enabled": true,
+        "lookback": 20,
+        "volume_ratio_min": 1.5,
+        "close_position_min": 0.6,
+        "stop_atr": 2.0,
+        "target_r": 2.0,
+        "resistance_lookback": 252
+      },
+      "pullback": {
+        "enabled": true,
+        "rsi_period": 14,
+        "rsi_max": 45,
+        "rsi_window": 3,
+        "near_sma": 20,
+        "near_sma_atr": 1.0,
+        "stop_lookback": 5,
+        "stop_buffer_atr": 0.25,
+        "max_stop_atr": 3.0,
+        "target_lookback": 20
+      }
+    },
+    "exits": {
+      "min_crv": 2.0,
+      "time_stop_days": 20,
+      "breakeven_after_r": null
+    }
+  }
+}

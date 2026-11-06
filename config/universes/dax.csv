@@ -1,0 +1,41 @@
+ticker,name,sector
+SAP.DE,SAP,Software
+SIE.DE,Siemens,Industrie
+ALV.DE,Allianz,Versicherungen
+AIR.DE,Airbus,Luftfahrt & Verteidigung
+ENR.DE,Siemens Energy,Energietechnik
+DTE.DE,Deutsche Telekom,Telekommunikation
+MUV2.DE,Münchener Rück,Versicherungen
+IFX.DE,Infineon,Halbleiter
+DB1.DE,Deutsche Börse,Finanzdienstleister
+DBK.DE,Deutsche Bank,Banken
+DHL.DE,DHL Group,Logistik
+BAYN.DE,Bayer,Pharma & Gesundheit
+BAS.DE,BASF,Chemie
+RHM.DE,Rheinmetall,Luftfahrt & Verteidigung
+EOAN.DE,E.ON,Versorger
+RWE.DE,RWE,Versorger
+ADS.DE,Adidas,Konsum
+MBG.DE,Mercedes-Benz Group,Automobil
+DTG.DE,Daimler Truck,Automobil
+FRE.DE,Fresenius,Pharma & Gesundheit
+HEI.DE,Heidelberg Materials,Bau & Baustoffe
+BMW.DE,BMW,Automobil
+MRK.DE,Merck KGaA,Pharma & Gesundheit
+MTX.DE,MTU Aero Engines,Luftfahrt & Verteidigung
+HNR1.DE,Hannover Rück,Versicherungen
+SHL.DE,Siemens Healthineers,Pharma & Gesundheit
+CBK.DE,Commerzbank,Banken
+VOW3.DE,Volkswagen Vz.,Automobil
+SY1.DE,Symrise,Chemie
+HEN3.DE,Henkel Vz.,Konsum
+VNA.DE,Vonovia,Immobilien
+G1A.DE,GEA Group,Industrie
+QIA.DE,Qiagen,Pharma & Gesundheit
+FME.DE,Fresenius Medical Care,Pharma & Gesundheit
+BEI.DE,Beiersdorf,Konsum
+CON.DE,Continental,Automobil
+BNR.DE,Brenntag,Chemie
+HOT.DE,Hochtief,Bau & Baustoffe
+G24.DE,Scout24,Internet
+ZAL.DE,Zalando,Internet

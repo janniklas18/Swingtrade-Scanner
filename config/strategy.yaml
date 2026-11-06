@@ -1,0 +1,75 @@
+# ---------------------------------------------------------------------------
+# Swing-Scanner: Regeln und Backtest-Einstellungen
+#
+# Alle Werte lassen sich hier ändern, ohne den Code anzufassen.
+# Wichtig: Regeln nur anhand der In-Sample-Periode (bis in_sample_end)
+# anpassen. Die Jahre danach sind der ehrliche Test.
+# ---------------------------------------------------------------------------
+
+backtest:
+  start: "2012-01-01"          # Beginn der Kursdaten
+  in_sample_end: "2021-12-31"  # bis hier: Entwicklung, danach: Out-of-Sample
+  initial_capital: 100000      # Startkapital der Portfolio-Simulation
+  risk_per_trade: 0.01         # 1 % des Depots Verlust bei Stop-out
+  max_positions: 5             # maximal gleichzeitig offene Trades
+  max_per_sector: 2            # maximal Trades je Sektor (Korrelationsschutz)
+  max_position_pct: 0.25       # eine Position höchstens 25 % des Depots
+  random_benchmark_runs: 20    # Wiederholungen des Zufalls-Benchmarks
+  bootstrap_runs: 2000         # für das Konfidenzintervall der Erwartung
+
+markets:
+  de:
+    label: "Deutschland (DAX, MDAX, SDAX)"
+    universes: [dax, mdax, sdax]
+    index: "^GDAXI"
+    index_label: "DAX"
+    currency: "EUR"
+    min_turnover: 5000000      # Ø Tagesumsatz der letzten 20 Tage (EUR)
+    cost_per_side_bps: 10      # Spread + Slippage je Kauf/Verkauf (0,10 %)
+    commission_per_trade: 1.0  # feste Ordergebühr je Kauf/Verkauf
+  us:
+    label: "USA (S&P 500)"
+    universes: [sp500]
+    index: "^GSPC"
+    index_label: "S&P 500"
+    currency: "USD"
+    min_turnover: 20000000
+    cost_per_side_bps: 5
+    commission_per_trade: 1.0
+
+filters:
+  regime_sma: 200              # Index muss über seiner 200-Tage-Linie liegen
+  trend_fast_sma: 50           # Aktie: Schluss > SMA50 > SMA200
+  trend_slow_sma: 200
+  atr_period: 14
+  atr_pct_min: 1.5             # Ø Tagesschwankung mindestens 1,5 %
+  atr_pct_max: 6.0             # ... und höchstens 6 %
+  min_price: 5.0
+  earnings_blackout: true      # kein Trade, wenn Zahlen in die Haltedauer fallen
+                               # (nur wo Termine verfügbar sind)
+
+setups:
+  breakout:
+    enabled: true
+    lookback: 20               # Schluss über dem Hoch der letzten 20 Tage
+    volume_ratio_min: 1.5      # Volumen mindestens 1,5x des 20-Tage-Schnitts
+    close_position_min: 0.6    # Schluss im oberen 40 % der Tagesspanne
+    stop_atr: 2.0              # Stop 2 ATR unter dem Signal-Schluss
+    target_r: 2.0              # Ziel = 2x Risiko (CRV 2)
+    resistance_lookback: 252   # 52-Wochen-Hoch als Widerstand
+  pullback:
+    enabled: true
+    rsi_period: 14
+    rsi_max: 45                # RSI war in den letzten 3 Tagen unter 45
+    rsi_window: 3
+    near_sma: 20               # Rücksetzer an die 20-Tage-Linie ...
+    near_sma_atr: 1.0          # ... höchstens 1 ATR entfernt
+    stop_lookback: 5           # Stop unter dem Tief der letzten 5 Tage
+    stop_buffer_atr: 0.25
+    max_stop_atr: 3.0          # Stop höchstens 3 ATR entfernt
+    target_lookback: 20        # Ziel = Hoch der letzten 20 Tage (Widerstand)
+
+exits:
+  min_crv: 2.0                 # Mindest-Chance-Risiko-Verhältnis bei Einstieg
+  time_stop_days: 20           # nach 20 Handelstagen raus, egal wo
+  breakeven_after_r: null      # z. B. 1.0: Stop auf Einstand nach +1R; null = aus

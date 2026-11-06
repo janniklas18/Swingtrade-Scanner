@@ -1,0 +1,66 @@
+name: Backtest
+
+# Start per Knopfdruck: Actions → Backtest → "Run workflow"
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Markt"
+        type: choice
+        options: [de, us, both]
+        default: de
+      start:
+        description: "Beginn der Kursdaten (JJJJ-MM-TT)"
+        type: string
+        default: "2012-01-01"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backtest
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Pakete installieren
+        run: pip install -r requirements.txt
+
+      - name: Tests
+        run: python -m pytest -q
+
+      - name: Kursdaten-Cache laden
+        uses: actions/cache@v6
+        with:
+          path: data/cache
+          key: prices-${{ github.run_id }}
+          restore-keys: prices-
+
+      - name: Backtest rechnen
+        run: python run_backtest.py --market "${{ inputs.market }}" --start "${{ inputs.start }}"
+
+      - name: Report speichern
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/backtests config/universes/sp500.csv
+          git commit -m "Backtest ${{ inputs.market }} ab ${{ inputs.start }}" || echo "Nichts zu speichern"
+          git pull --rebase
+          git push
+
+      - name: Report zusätzlich als Download
+        uses: actions/upload-artifact@v7
+        with:
+          name: backtest-${{ inputs.market }}-${{ github.run_number }}
+          path: docs/backtests/
+          retention-days: 30

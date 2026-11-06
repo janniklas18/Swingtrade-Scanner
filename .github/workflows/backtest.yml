@@ -1,14 +1,29 @@
 name: Backtest
 
 # Start per Knopfdruck: Actions → Backtest → "Run workflow"
+#
+# Empfohlene Reihenfolge:
+#   1. Modus "varianten", Markt "both"  -> vergleicht die Varianten nur bis 2021
+#   2. Modus "finaltest"                -> prüft die gewählte Variante auf dem
+#                                          frischen Testmarkt (Schweiz, Frankreich,
+#                                          Niederlande) und auf DE/US
 on:
   workflow_dispatch:
     inputs:
-      market:
-        description: "Markt"
+      mode:
+        description: "Modus"
         type: choice
-        options: [de, us, both]
+        options: [backtest, varianten, finaltest]
+        default: backtest
+      market:
+        description: "Markt (bei finaltest ohne Bedeutung)"
+        type: choice
+        options: [de, us, both, eu]
         default: de
+      variant:
+        description: "Variante: keine, auto (gewählte) oder basis / nur_ausbruch / nachgezogen / staerke"
+        type: string
+        default: "keine"
       start:
         description: "Beginn der Kursdaten (JJJJ-MM-TT)"
         type: string
@@ -24,7 +39,7 @@ concurrency:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
 
@@ -47,20 +62,25 @@ jobs:
           restore-keys: prices-
 
       - name: Backtest rechnen
-        run: python run_backtest.py --market "${{ inputs.market }}" --start "${{ inputs.start }}"
+        run: >
+          python run_backtest.py
+          --mode "${{ inputs.mode }}"
+          --market "${{ inputs.market }}"
+          --variant "${{ inputs.variant }}"
+          --start "${{ inputs.start }}"
 
       - name: Report speichern
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/backtests config/universes/sp500.csv
-          git commit -m "Backtest ${{ inputs.market }} ab ${{ inputs.start }}" || echo "Nichts zu speichern"
+          git commit -m "Backtest: ${{ inputs.mode }} ${{ inputs.market }} ${{ inputs.variant }}" || echo "Nichts zu speichern"
           git pull --rebase
           git push
 
       - name: Report zusätzlich als Download
         uses: actions/upload-artifact@v7
         with:
-          name: backtest-${{ inputs.market }}-${{ github.run_number }}
+          name: backtest-${{ inputs.mode }}-${{ github.run_number }}
           path: docs/backtests/
           retention-days: 30

@@ -1,0 +1,39 @@
+ticker,name,sector
+SU.PA,Schneider Electric,Industrie
+TTE.PA,TotalEnergies,Energie
+AI.PA,Air Liquide,Chemie
+SAF.PA,Safran,Luftfahrt & Verteidigung
+BNP.PA,BNP Paribas,Banken
+MC.PA,LVMH,Konsum
+OR.PA,L'Oréal,Konsum
+SAN.PA,Sanofi,Pharma & Gesundheit
+CS.PA,AXA,Versicherungen
+DG.PA,Vinci,Bau & Baustoffe
+EL.PA,EssilorLuxottica,Pharma & Gesundheit
+GLE.PA,Société Générale,Banken
+ENGI.PA,Engie,Versorger
+RMS.PA,Hermès,Konsum
+BN.PA,Danone,Konsum
+LR.PA,Legrand,Industrie
+SGO.PA,Saint-Gobain,Bau & Baustoffe
+STMPA.PA,STMicroelectronics,Halbleiter
+ORA.PA,Orange,Telekommunikation
+ML.PA,Michelin,Automobil
+PUB.PA,Publicis,Medien
+HO.PA,Thales,Luftfahrt & Verteidigung
+VIE.PA,Veolia,Versorger
+KER.PA,Kering,Konsum
+CAP.PA,Capgemini,Software
+ACA.PA,Crédit Agricole,Banken
+DSY.PA,Dassault Systèmes,Software
+RI.PA,Pernod Ricard,Konsum
+ENX.PA,Euronext,Finanzdienstleister
+CA.PA,Carrefour,Konsum
+URW.PA,Unibail-Rodamco-Westfield,Immobilien
+BVI.PA,Bureau Veritas,Dienstleistungen
+EN.PA,Bouygues,Bau & Baustoffe
+ERF.PA,Eurofins Scientific,Pharma & Gesundheit
+STLAP.PA,Stellantis,Automobil
+AC.PA,Accor,Reise & Freizeit
+FGR.PA,Eiffage,Bau & Baustoffe
+RNO.PA,Renault,Automobil

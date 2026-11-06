@@ -22,7 +22,7 @@ BLUE, GREY, GREEN, RED = "#2563eb", "#9ca3af", "#16a34a", "#dc2626"
 def _num(x, digits=2, suffix=""):
     if x is None or (isinstance(x, float) and (np.isnan(x) or np.isinf(x))):
         return "–" if not (isinstance(x, float) and np.isinf(x)) else "∞"
-    return f"{x:,.{digits}f}{suffix}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{x:,.{digits}f}".replace(",", "X").replace(".", ",").replace("X", ".") + suffix
 
 
 def _pct(x, digits=1):
@@ -84,8 +84,9 @@ def chart_by_year(by_year: pd.DataFrame, split_year: int) -> str:
 
 def chart_r_hist(r: pd.Series) -> str:
     fig, ax = plt.subplots(figsize=(9, 2.8))
-    bins = np.arange(-2.5, 4.01, 0.25)
-    vals = r.clip(-2.49, 3.99)
+    top = float(np.clip(np.ceil(r.quantile(0.99)), 4, 10))
+    bins = np.arange(-2.5, top + 0.01, 0.25)
+    vals = r.clip(-2.49, top - 0.01)
     neg, pos = vals[vals <= 0], vals[vals > 0]
     ax.hist(neg, bins=bins, color=RED, alpha=0.6)
     ax.hist(pos, bins=bins, color=GREEN, alpha=0.6)
@@ -96,14 +97,14 @@ def chart_r_hist(r: pd.Series) -> str:
     return _img(fig)
 
 
-def chart_random(real: float, rand: pd.Series) -> str:
+def chart_random(real: float, rand: pd.Series, period: str = "im Out-of-Sample") -> str:
     fig, ax = plt.subplots(figsize=(9, 1.3))
     ax.scatter(rand, np.zeros(len(rand)), color=GREY, s=30, alpha=0.7, label="Zufällige Einstiege (je Lauf)")
     ax.scatter([real], [0], color=BLUE, s=90, marker="D", label="Echte Signale", zorder=3)
     ax.axvline(0, color="#6b7280", lw=1)
     ax.set_yticks([])
     ax.set_ylim(-1, 1)
-    ax.set_xlabel("Ø Ergebnis je Trade im Out-of-Sample (R)", fontsize=9, color="#4b5563")
+    ax.set_xlabel(f"Ø Ergebnis je Trade {period} (R)", fontsize=9, color="#4b5563")
     ax.legend(frameon=False, fontsize=8, loc="upper right", ncol=2)
     _style_ax(ax)
     ax.spines["left"].set_visible(False)
@@ -143,18 +144,19 @@ def _stats_rows(cols: list[dict]) -> list[list[str]]:
 # ---------------------------------------------------------------------------
 # Urteil
 # ---------------------------------------------------------------------------
-def verdict(oos: dict, rand_oos: pd.Series) -> tuple[str, str, str]:
-    """Ampel auf Basis des Out-of-Sample-Zeitraums."""
+def verdict(oos: dict, rand_oos: pd.Series, holdout: bool = False) -> tuple[str, str, str]:
+    """Ampel auf Basis des Prüfzeitraums (beim frischen Testmarkt: alle Jahre)."""
+    where = "Auf dem frischen Testmarkt" if holdout else "Im Out-of-Sample"
     n = oos.get("n", 0)
     if n < 30:
         return ("grey", "Zu wenige Trades für ein Urteil",
-                f"Im Out-of-Sample gab es nur {n} Trades. Ab etwa 30, besser 100, wird das Ergebnis aussagekräftig.")
+                f"{where} gab es nur {n} Trades. Ab etwa 30, besser 100, wird das Ergebnis aussagekräftig.")
     exp, lo = oos["expectancy"], oos["ci_low"]
     q95 = rand_oos.quantile(0.95) if len(rand_oos.dropna()) else np.nan
     beats = not np.isnan(q95) and exp > q95
     if exp <= 0:
         return ("red", "Kein Vorteil erkennbar",
-                f"Im Out-of-Sample verliert ein Trade im Schnitt {_r(exp)} nach Kosten. So nicht handeln.")
+                f"{where} verliert ein Trade im Schnitt {_r(exp)} nach Kosten. So nicht handeln.")
     if lo > 0 and beats:
         return ("green", "Messbarer Vorteil",
                 f"Erwartung {_r(exp)} je Trade nach Kosten, das 95 %-Intervall liegt über null, und die Signale "
@@ -184,10 +186,53 @@ h3{font-size:15px;margin:20px 0 6px}.meta{color:var(--muted);font-size:13px}
 .box b.t{display:block;font-size:17px;margin-bottom:2px}
 .wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0 10px}
 th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-th{background:var(--soft);font-weight:600;color:#374151}td.l,th:first-child{text-align:left}
+th{background:var(--soft);font-weight:600;color:#374151}td.l,th:first-child{text-align:left;white-space:normal;min-width:160px}
 img{max-width:100%;height:auto;display:block;margin:6px 0}
 ul{padding-left:20px}li{margin:3px 0}small,.note{color:var(--muted);font-size:13px}
 """
+
+
+def rules_text(cfg: dict, m: dict) -> list[str]:
+    """Die Regeln in Worten (für Reports)."""
+    f, sb, sp, ex = cfg["filters"], cfg["setups"]["breakout"], cfg["setups"]["pullback"], cfg["exits"]
+    trail = ex.get("trail_atr")
+    regime = m["index_label"] if not m.get("regime_index") else "Landesindex"
+    out = [
+        f"<b>Filter:</b> {regime} über seiner {f['regime_sma']}-Tage-Linie; Aktie über SMA{f['trend_fast_sma']}, "
+        f"SMA{f['trend_fast_sma']} über SMA{f['trend_slow_sma']}; ATR zwischen {_num(f['atr_pct_min'], 1)} und "
+        f"{_num(f['atr_pct_max'], 1)} % vom Kurs; Ø Tagesumsatz mindestens {_num(m['min_turnover'] / 1e6, 0)} Mio. "
+        f"{m['currency']}; keine Quartalszahlen in der Haltedauer (wo bekannt)."
+        + (f" Nur Aktien unter den stärksten {_pct(1 - f['rs_rank_min'], 0)} des Universums "
+           f"(Kursentwicklung der letzten {f.get('rs_rank_lookback', 126)} Handelstage)."
+           if f.get("rs_rank_min") is not None else "")
+    ]
+    if sb["enabled"]:
+        tgt = "kein festes Ziel" if trail else f"Ziel {_num(sb['target_r'], 1)} R"
+        out.append(
+            f"<b>Ausbruch:</b> Schluss über dem {sb['lookback']}-Tage-Hoch, Volumen mindestens "
+            f"{_num(sb['volume_ratio_min'], 1)}× Durchschnitt, Schluss im oberen Teil der Tagesspanne. Stop "
+            f"{_num(sb['stop_atr'], 1)} ATR unter dem Signalkurs, {tgt}. Kein Trade, wenn das 52-Wochen-Hoch "
+            f"weniger als {_num(ex['min_crv'], 1)} R über dem Einstieg liegt."
+        )
+    if sp["enabled"]:
+        out.append(
+            f"<b>Rücksetzer:</b> RSI({sp['rsi_period']}) war in den letzten {sp['rsi_window']} Tagen unter "
+            f"{sp['rsi_max']}, Kurs an der {sp['near_sma']}-Tage-Linie, dann Schluss über dem Vortageshoch. Stop "
+            f"unter dem {sp['stop_lookback']}-Tage-Tief, Ziel am {sp['target_lookback']}-Tage-Hoch, nur bei "
+            f"CRV ≥ {_num(ex['min_crv'], 1)}."
+        )
+    if trail:
+        out.append(
+            f"<b>Ausstieg:</b> Nachgezogener Stop {_num(trail, 1)} ATR unter dem höchsten Schlusskurs seit Einstieg "
+            f"(steigt nur), oder nach {ex['time_stop_days']} Handelstagen zum Schlusskurs. Einstieg zur Eröffnung "
+            "des Folgetags."
+        )
+    else:
+        out.append(
+            f"<b>Ausstieg:</b> Stop, Ziel oder nach {ex['time_stop_days']} Handelstagen zum Schlusskurs. "
+            "Einstieg zur Eröffnung des Folgetags; Stop und Ziel am selben Tag zählen als Stop."
+        )
+    return out
 
 
 def build_report(ctx: dict) -> str:
@@ -196,17 +241,30 @@ def build_report(ctx: dict) -> str:
     split = ctx["split"]
     m = ctx["market"]
     rnd = ctx["random"]
+    holdout = ctx.get("holdout", False)
     s_all, s_is, s_oos = ctx["stats_all"], ctx["stats_is"], ctx["stats_oos"]
-    rand_oos = rnd["oos_mean_r"].dropna() if not rnd.empty else pd.Series(dtype=float)
-    rand_stats = {"n": int(s_oos.get("n", 0)), "expectancy": rand_oos.mean() if len(rand_oos) else np.nan}
-    color, title, text = verdict(s_oos, rand_oos)
+    s_test = s_all if holdout else s_oos
+    rand_col = "all_mean_r" if holdout else "oos_mean_r"
+    rand_oos = rnd[rand_col].dropna() if not rnd.empty else pd.Series(dtype=float)
+    rand_stats = {"n": int(s_test.get("n", 0)), "expectancy": rand_oos.mean() if len(rand_oos) else np.nan}
+    color, title, text = verdict(s_test, rand_oos, holdout)
+    bl = ctx.get("bench_label", m["index_label"])
 
-    parts = [f"<h1>Backtest: {html.escape(m['label'])}</h1>"]
+    head = "Finaltest" if ctx.get("variant_label") else "Backtest"
+    parts = [f"<h1>{head}: {html.escape(m['label'])}</h1>"]
+    if ctx.get("variant_label"):
+        parts.append(f"<p><b>Variante:</b> {html.escape(ctx['variant_label'])}</p>")
     parts.append(
         f'<div class="meta">Zeitraum {ctx["start"]:%d.%m.%Y} – {ctx["end"]:%d.%m.%Y} · '
         f"Out-of-Sample ab {split + pd.Timedelta(days=1):%d.%m.%Y} · Datenquelle: {html.escape(ctx['source'])} · "
         f"erstellt {datetime.now():%d.%m.%Y %H:%M}</div>"
     )
+    if holdout:
+        parts.append(
+            '<div class="box grey"><b class="t">Frischer Testmarkt</b>Diese Aktien wurden bei der Entwicklung '
+            "der Regeln nie angesehen. Deshalb zählt hier der gesamte Zeitraum als Prüfung, nicht nur die Jahre "
+            "ab 2022.</div>"
+        )
     if ctx["source"] == "synthetic":
         parts.append(
             '<div class="box warn"><b class="t">Testlauf mit künstlichen Kursen</b>'
@@ -223,7 +281,8 @@ def build_report(ctx: dict) -> str:
         f"({_num(m['cost_per_side_bps'] / 100, 2, ' %')} je Kauf und Verkauf).</p>"
     )
     parts.append('<div class="wrap">' + _table(
-        ["", "Gesamt", f"In-Sample (bis {split:%Y})", f"Out-of-Sample (ab {split.year + 1})", "Zufall (Out-of-Sample)"],
+        ["", "Gesamt", f"In-Sample (bis {split:%Y})", f"Out-of-Sample (ab {split.year + 1})",
+         "Zufall (gesamt)" if holdout else "Zufall (Out-of-Sample)"],
         [r[:4] + [r4] for r, r4 in zip(
             _stats_rows([s_all, s_is, s_oos]),
             [str(rand_stats["n"]), "–", "–", "–", f"<b>{_r(rand_stats['expectancy'])}</b>", "–", "–"],
@@ -237,7 +296,8 @@ def build_report(ctx: dict) -> str:
             f"{len(rand_oos)} Wiederholungen. Liegt der blaue Punkt klar rechts der grauen, bringt das Signal "
             "selbst einen Mehrwert.</p>"
         )
-        parts.append(chart_random(s_oos.get("expectancy", np.nan), rand_oos))
+        parts.append(chart_random(s_test.get("expectancy", np.nan), rand_oos,
+                                  "gesamt" if holdout else "im Out-of-Sample"))
     if not t.empty:
         parts.append("<h3>Verteilung der Ergebnisse</h3>" + chart_r_hist(t["r"]))
 
@@ -251,7 +311,7 @@ def build_report(ctx: dict) -> str:
         f"{bt['max_per_sector']} je Sektor. Bei mehreren Signalen am selben Tag haben Aktien mit höherer "
         f"relativer Stärke Vorrang. Ordergebühr {_num(m['commission_per_trade'], 2)} {m['currency']} je Order.</p>"
     )
-    parts.append(chart_equity(pf["equity"], pf["bench"], split, m["index_label"]))
+    parts.append(chart_equity(pf["equity"], pf["bench"], split, bl))
     rows = []
     for label, key in (("Gesamt", "all"), ("In-Sample", "is"), ("Out-of-Sample", "oos")):
         s, b = pf["stats"][key], pf["bench_stats"][key]
@@ -260,12 +320,33 @@ def build_report(ctx: dict) -> str:
             _num(s.get("sharpe")), _num(b.get("sharpe")),
         ])
     parts.append('<div class="wrap">' + _table(
-        ["", "Rendite p. a.", f"{m['index_label']} p. a.", "Max. Rückgang", f"{m['index_label']} Max. Rückgang",
-         "Sharpe", f"{m['index_label']} Sharpe"], rows) + "</div>")
+        ["", "Rendite p. a.", "ETF p. a.", "Max. Rückgang", "ETF Max. Rückgang",
+         "Sharpe", "ETF Sharpe"], rows) + "</div>")
     parts.append(
         f'<p class="note">Ausgeführt wurden {pf["n_taken"]} von {len(t)} Signalen (Rest: Kapazität oder Sektorgrenze). '
-        f"Im Schnitt waren {_pct(pf['invested'].mean(), 0)} des Kapitals investiert. Die Strategie ist also oft "
-        "teilweise in Cash – ein Vergleich mit dem Index sollte das berücksichtigen.</p>"
+        f"Im Schnitt waren {_pct(pf['invested'].mean(), 0)} des Kapitals investiert. Der Vergleich nutzt einen "
+        f"ETF inklusive Dividenden ({html.escape(bl)}).</p>"
+    )
+
+    # Steuern
+    tax = cfg["tax"]
+    parts.append("<h3>Nach Steuern: Strategie gegen ETF</h3>")
+    rows = []
+    for label, key in (("Gesamt", "all"), ("In-Sample", "is"), ("Out-of-Sample", "oos")):
+        s, st = pf["stats"][key], pf["stats_tax"][key]
+        b, bt_ = pf["bench_stats"][key], pf["bench_stats_tax"][key]
+        diff = st.get("cagr", np.nan) - bt_.get("cagr", np.nan)
+        rows.append([label, _pct(s.get("cagr")), f"<b>{_pct(st.get('cagr'))}</b>", _pct(b.get("cagr")),
+                     f"<b>{_pct(bt_.get('cagr'))}</b>",
+                     ("+" if diff > 0 else "") + _num(diff * 100, 1, " %-Pkt.") if not pd.isna(diff) else "–"])
+    parts.append('<div class="wrap">' + _table(
+        ["", "Strategie vor Steuern", "Strategie nach Steuern", "ETF vor Steuern", "ETF nach Steuern",
+         "Vorsprung nach Steuern"], rows) + "</div>")
+    parts.append(
+        f'<p class="note">Strategie: {_pct(tax["rate"], 3)} Abgeltungsteuer inkl. Soli auf die realisierten '
+        "Gewinne jedes Jahres, Verluste werden vorgetragen. ETF: Steuer erst beim Verkauf am Ende des Zeitraums, "
+        f"mit {_pct(tax['etf_partial_exemption'], 0)} Teilfreistellung. Nicht berücksichtigt: Kirchensteuer, "
+        "Sparer-Pauschbetrag, Vorabpauschale und Wechselkurse.</p>"
     )
 
     # Aufschlüsselungen
@@ -325,29 +406,7 @@ def build_report(ctx: dict) -> str:
               html.escape(r["reason"]), _r(r["r"])] for _, r in last.iterrows()]) + "</div>")
 
     # Regeln
-    f, sb, sp, ex = cfg["filters"], cfg["setups"]["breakout"], cfg["setups"]["pullback"], cfg["exits"]
-    parts.append("<h2>Getestete Regeln</h2><ul>")
-    parts.append(
-        f"<li><b>Filter:</b> {m['index_label']} über seiner {f['regime_sma']}-Tage-Linie; Aktie über SMA{f['trend_fast_sma']}, "
-        f"SMA{f['trend_fast_sma']} über SMA{f['trend_slow_sma']}; ATR zwischen {_num(f['atr_pct_min'], 1)} und "
-        f"{_num(f['atr_pct_max'], 1)} % vom Kurs; Ø Tagesumsatz mindestens {_num(m['min_turnover'] / 1e6, 0)} Mio. "
-        f"{m['currency']}; keine Quartalszahlen in der Haltedauer (wo bekannt).</li>"
-    )
-    parts.append(
-        f"<li><b>Ausbruch:</b> Schluss über dem {sb['lookback']}-Tage-Hoch, Volumen mindestens "
-        f"{_num(sb['volume_ratio_min'], 1)}× Durchschnitt, Schluss im oberen Teil der Tagesspanne. Stop "
-        f"{_num(sb['stop_atr'], 1)} ATR unter dem Signalkurs, Ziel {_num(sb['target_r'], 1)} R. Kein Trade, wenn das "
-        "52-Wochen-Hoch zwischen Einstieg und Ziel liegt.</li>"
-    )
-    parts.append(
-        f"<li><b>Rücksetzer:</b> RSI({sp['rsi_period']}) war in den letzten {sp['rsi_window']} Tagen unter {sp['rsi_max']}, "
-        f"Kurs an der {sp['near_sma']}-Tage-Linie, dann Schluss über dem Vortageshoch. Stop unter dem "
-        f"{sp['stop_lookback']}-Tage-Tief, Ziel am {sp['target_lookback']}-Tage-Hoch, nur bei CRV ≥ {_num(ex['min_crv'], 1)}.</li>"
-    )
-    parts.append(
-        f"<li><b>Ausstieg:</b> Stop, Ziel oder nach {ex['time_stop_days']} Handelstagen zum Schlusskurs. "
-        "Einstieg zur Eröffnung des Folgetags; Stop und Ziel am selben Tag zählen als Stop.</li></ul>"
-    )
+    parts.append("<h2>Getestete Regeln</h2><ul>" + "".join(f"<li>{x}</li>" for x in rules_text(cfg, m)) + "</ul>")
     parts.append(
         '<p class="note">Wichtig: Die Regeln nur anhand der In-Sample-Jahre anpassen. Wer so lange an den '
         "Parametern dreht, bis auch das Out-of-Sample gut aussieht, verliert den ehrlichen Test. "
@@ -365,11 +424,133 @@ def build_report(ctx: dict) -> str:
 def build_index(entries: list[dict]) -> str:
     rows = [[f'<a href="{html.escape(e["file"])}">{html.escape(e["label"])}</a>', e["date"],
              html.escape(e["source"]), str(e["n_oos"]), e["exp_oos"], e["verdict"]] for e in entries]
-    table = _table(["Report", "Erstellt", "Daten", "Trades OOS", "Erwartung OOS", "Urteil"], rows)
+    table = _table(["Report", "Erstellt", "Daten", "Trades im Prüfzeitraum", "Erwartung", "Urteil"], rows)
     return (
         '<!doctype html><html lang="de"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         f"<title>Backtests</title><style>{CSS}</style></head><body><main>"
         "<h1>Backtests</h1><p class=\"meta\">Neueste zuerst.</p>"
         f'<div class="wrap">{table}</div></main></body></html>'
+    )
+
+
+# ---------------------------------------------------------------------------
+# Variantenvergleich
+# ---------------------------------------------------------------------------
+MARKET_COLORS = ["#2563eb", "#f59e0b", "#10b981"]
+
+
+def chart_variants(df: pd.DataFrame) -> str:
+    markets = list(dict.fromkeys(df["market"]))
+    variants = list(dict.fromkeys(df["variant"]))
+    labels = [df.loc[df["variant"] == v, "label"].iloc[0].split(":")[0] for v in variants]
+    fig, ax = plt.subplots(figsize=(9, 3.4))
+    width = 0.8 / len(markets)
+    for j, mk in enumerate(markets):
+        sub = df[df["market"] == mk].set_index("variant").reindex(variants)
+        xs = np.arange(len(variants)) + (j - (len(markets) - 1) / 2) * width
+        ax.bar(xs, sub["cagr_tax"] * 100, width=width * 0.9, color=MARKET_COLORS[j], alpha=0.85,
+               label=f"{sub['market_label'].iloc[0]}: Strategie")
+        etf = sub["etf_cagr_tax"].iloc[0] * 100
+        ax.axhline(etf, color=MARKET_COLORS[j], ls="--", lw=1.2,
+                   label=f"{sub['bench_label'].iloc[0]} nach Steuern ({_num(etf, 1)} %)")
+        for x, v in zip(xs, sub["cagr_tax"] * 100):
+            ax.text(x, v + (0.3 if v >= 0 else -0.9), _num(v, 1), ha="center", fontsize=8, color="#374151")
+    ax.axhline(0, color="#6b7280", lw=0.8)
+    ax.set_xticks(range(len(variants)))
+    ax.set_xticklabels([f"Variante {l}" for l in labels], fontsize=9)
+    ax.set_ylabel("Rendite p. a. nach Steuern (%)", fontsize=9, color="#4b5563")
+    ax.legend(frameon=False, fontsize=8, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+    _style_ax(ax)
+    return _img(fig)
+
+
+def build_variants_report(df: pd.DataFrame, choice: dict, cfg: dict, source: str) -> str:
+    split = pd.Timestamp(cfg["backtest"]["in_sample_end"])
+    parts = ["<h1>Variantenvergleich</h1>"]
+    parts.append(
+        f'<div class="meta">Nur In-Sample: {cfg["backtest"]["start"][:4]} bis {split:%d.%m.%Y} · '
+        f"Datenquelle: {html.escape(source)} · erstellt {datetime.now():%d.%m.%Y %H:%M}</div>"
+    )
+    if source == "synthetic":
+        parts.append('<div class="box warn"><b class="t">Testlauf mit künstlichen Kursen</b>'
+                     "Die Zahlen sagen nichts über echte Märkte aus.</div>")
+
+    lab = html.escape(choice["label"])
+    if not choice["eligible"]:
+        color, title = "red", "Keine Variante erfüllt die Bedingung"
+        text = (f"Keine Variante hat in allen Märkten eine positive Erwartung je Trade. Am besten schneidet "
+                f"{lab} ab. Ein Finaltest ist kaum sinnvoll – die Regeln sollten grundsätzlich überdacht werden.")
+    else:
+        notes = []
+        if not choice["beats_random"]:
+            notes.append("sie schlägt zufällige Einstiege im selben Umfeld nicht in allen Märkten")
+        if not choice["beats_etf_after_tax"]:
+            notes.append("sie liegt nach Steuern im Schnitt hinter dem ETF")
+        color = "green" if not notes else "yellow"
+        title = f"Gewählt: {lab}"
+        text = "Gewählt nach der vorab festgelegten Regel (siehe unten)."
+        if notes:
+            text += " Vorsicht: " + " und ".join(notes) + "."
+        text += (" Nächster Schritt: Finaltest auf dem frischen Testmarkt (Actions → Backtest → Modus "
+                 "„finaltest“).")
+    parts.append(f'<div class="box {color}"><b class="t">{title}</b>{text}</div>')
+
+    parts.append("<h2>Rendite nach Steuern</h2>")
+    parts.append('<p class="note">Balken: Portfolio-Simulation der Variante nach Abgeltungsteuer. Gestrichelt: '
+                 "ETF inklusive Dividenden nach Steuern bei Verkauf am Ende.</p>")
+    parts.append(chart_variants(df))
+
+    for mk, sub in df.groupby("market", sort=False):
+        parts.append(f"<h2>{html.escape(sub['market_label'].iloc[0])}</h2>")
+        rows, rows2 = [], []
+        for _, r in sub.iterrows():
+            edge = r["expectancy"] - r["random"]
+            name = html.escape(r["label"]) + (" ✓" if r["variant"] == choice["variant"] else "")
+            rows.append([
+                name, str(int(r["n"])), _pct(r["hit_rate"]), f"<b>{_r(r['expectancy'])}</b>",
+                f"{_r(r['ci_low'])} bis {_r(r['ci_high'])}", _r(r["random"]),
+                ("+" if edge > 0 else "") + _num(edge, 2, " R"), _num(r["days"], 1),
+            ])
+            rows2.append([
+                name, _pct(r["cagr"]), f"<b>{_pct(r['cagr_tax'])}</b>", _pct(r["etf_cagr_tax"]),
+                _pct(r["max_dd"]), _num(r["sharpe"]), str(int(r["n_taken"])),
+            ])
+        parts.append("<h3>Ergebnis je Trade</h3>" + '<div class="wrap">' + _table(
+            ["Variante", "Trades", "Treffer", "Erwartung", "95 %-Intervall", "Zufall", "Signal − Zufall", "Ø Tage"],
+            rows) + "</div>")
+        parts.append("<h3>Portfolio</h3>" + '<div class="wrap">' + _table(
+            ["Variante", "Rendite p. a.", "nach Steuern", f"{html.escape(sub['bench_label'].iloc[0])} nach Steuern",
+             "Max. Rückgang", "Sharpe", "Trades"], rows2) + "</div>")
+
+    parts.append("<h2>Auswahlregel und Vorgehen</h2><ul>")
+    parts.append("<li><b>Auswahlregel (vorab festgelegt):</b> höchste Rendite p. a. nach Steuern im Schnitt über "
+                 "alle getesteten Märkte, sofern die Erwartung je Trade in jedem Markt über null liegt.</li>")
+    parts.append(f"<li><b>Nur In-Sample:</b> Alle Zahlen stammen aus den Jahren bis {split:%Y}. Die Jahre danach "
+                 "werden hier bewusst nicht gezeigt, damit sie die Auswahl nicht beeinflussen.</li>")
+    parts.append("<li><b>Finaltest:</b> Die gewählte Variante wird anschließend auf Aktien aus der Schweiz, "
+                 "Frankreich und den Niederlanden geprüft, die nie zur Entwicklung genutzt wurden.</li>")
+    parts.append("<li><b>Signal − Zufall:</b> Wie viel R je Trade das Einstiegssignal mehr bringt als ein zufälliger "
+                 "Einstieg an einem Tag, an dem dieselben Filter erfüllt waren.</li></ul>")
+
+    parts.append("<h2>Die Varianten</h2>")
+    for name, v in cfg["variants"].items():
+        from copy import deepcopy
+
+        vcfg = deepcopy(cfg)
+        for k, sub in (v.get("overrides") or {}).items():
+            for kk, val in sub.items():
+                if isinstance(val, dict):
+                    vcfg[k][kk].update(val)
+                else:
+                    vcfg[k][kk] = val
+        m = cfg["markets"]["de"]
+        parts.append(f"<h3>{html.escape(v['label'])}</h3><ul>"
+                     + "".join(f"<li>{x}</li>" for x in rules_text(vcfg, m)) + "</ul>")
+    parts.append('<p class="note">Kein Anlagerat; vergangene Ergebnisse sind keine Garantie.</p>')
+    return (
+        '<!doctype html><html lang="de"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        f"<title>Variantenvergleich</title><style>{CSS}</style></head>"
+        f"<body><main>{''.join(parts)}</main></body></html>"
     )

@@ -21,8 +21,10 @@ markets:
   de:
     label: "Deutschland (DAX, MDAX, SDAX)"
     universes: [dax, mdax, sdax]
-    index: "^GDAXI"
+    index: "^GDAXI"            # Marktumfeld-Filter
     index_label: "DAX"
+    benchmark: "EXS1.DE"       # Vergleich: iShares Core DAX (thesaurierend)
+    benchmark_label: "DAX-ETF"
     currency: "EUR"
     min_turnover: 5000000      # Ø Tagesumsatz der letzten 20 Tage (EUR)
     cost_per_side_bps: 10      # Spread + Slippage je Kauf/Verkauf (0,10 %)
@@ -32,9 +34,28 @@ markets:
     universes: [sp500]
     index: "^GSPC"
     index_label: "S&P 500"
+    benchmark: "SPY"           # Vergleich: S&P-500-ETF inkl. Dividenden
+    benchmark_label: "S&P-500-ETF"
     currency: "USD"
     min_turnover: 20000000
     cost_per_side_bps: 5
+    commission_per_trade: 1.0
+  eu:
+    label: "Testmarkt Europa (SMI, CAC 40, AEX)"
+    holdout: true              # nie zur Regelentwicklung genutzt
+    universes: [smi, cac40, aex]
+    index: "^STOXX50E"
+    index_label: "Euro Stoxx 50"
+    regime_index:              # Marktumfeld je Börsenplatz
+      ".SW": "^SSMI"
+      ".PA": "^FCHI"
+      ".AS": "^AEX"
+      ".BR": "^AEX"
+    benchmark: "EXW1.DE"       # Vergleich: iShares Euro Stoxx 50 inkl. Dividenden
+    benchmark_label: "Euro-Stoxx-50-ETF"
+    currency: "EUR/CHF"
+    min_turnover: 5000000
+    cost_per_side_bps: 10
     commission_per_trade: 1.0
 
 filters:
@@ -47,6 +68,8 @@ filters:
   min_price: 5.0
   earnings_blackout: true      # kein Trade, wenn Zahlen in die Haltedauer fallen
                                # (nur wo Termine verfügbar sind)
+  rs_rank_min: null            # z. B. 0.8: nur die stärksten 20 % des Universums
+  rs_rank_lookback: 126        # Kursentwicklung der letzten 6 Monate für die Rangfolge
 
 setups:
   breakout:
@@ -73,3 +96,36 @@ exits:
   min_crv: 2.0                 # Mindest-Chance-Risiko-Verhältnis bei Einstieg
   time_stop_days: 20           # nach 20 Handelstagen raus, egal wo
   breakeven_after_r: null      # z. B. 1.0: Stop auf Einstand nach +1R; null = aus
+  trail_atr: null              # z. B. 3.0: Stop folgt dem höchsten Schluss mit 3 ATR
+                               # Abstand; dann gibt es kein festes Ziel
+
+tax:
+  rate: 0.26375                # Abgeltungsteuer + Soli (ohne Kirchensteuer)
+  etf_partial_exemption: 0.30  # Teilfreistellung für Aktien-ETFs
+
+# ---------------------------------------------------------------------------
+# Varianten für den Vergleich (Modus "varianten").
+# Jede Variante ändert nur die genannten Werte gegenüber den Regeln oben.
+# Verglichen wird NUR im In-Sample. Auswahlregel (vorab festgelegt):
+# höchste Rendite p. a. nach Steuern im Schnitt über DE und US, sofern die
+# Erwartung je Trade in beiden Märkten über null liegt.
+# ---------------------------------------------------------------------------
+variants:
+  basis:
+    label: "A: Basis (bisherige Regeln)"
+    overrides: {}
+  nur_ausbruch:
+    label: "B: Nur Ausbrüche"
+    overrides:
+      setups: {pullback: {enabled: false}}
+  nachgezogen:
+    label: "C: Ausbrüche mit nachgezogenem Stop"
+    overrides:
+      setups: {pullback: {enabled: false}}
+      exits: {trail_atr: 3.0, time_stop_days: 60}
+  staerke:
+    label: "D: Wie C, nur die stärksten 20 % der Aktien"
+    overrides:
+      setups: {pullback: {enabled: false}}
+      exits: {trail_atr: 3.0, time_stop_days: 60}
+      filters: {rs_rank_min: 0.8}

@@ -36,8 +36,16 @@ def rsi(s: pd.Series, n: int = 14) -> pd.Series:
 # ---------------------------------------------------------------------------
 # Aufbereitung je Aktie
 # ---------------------------------------------------------------------------
-def prepare(df: pd.DataFrame, index_df: pd.DataFrame, cfg: dict, min_turnover: float) -> pd.DataFrame:
-    """Berechnet Indikatoren, Filter und Signale für eine Aktie."""
+def prepare(
+    df: pd.DataFrame,
+    index_df: pd.DataFrame,
+    cfg: dict,
+    min_turnover: float,
+    rs_rank: pd.Series | None = None,
+) -> pd.DataFrame:
+    """Berechnet Indikatoren, Filter und Signale für eine Aktie.
+    rs_rank: Rang der Kursentwicklung im gesamten Universum (0 = schwächste,
+    1 = stärkste Aktie), am selben Tag berechnet."""
     f, sb, sp, ex = cfg["filters"], cfg["setups"]["breakout"], cfg["setups"]["pullback"], cfg["exits"]
     d = df.copy()
     c = d["close"]
@@ -68,6 +76,9 @@ def prepare(df: pd.DataFrame, index_df: pd.DataFrame, cfg: dict, min_turnover: f
         & (d["turnover20"] >= min_turnover)
         & (c >= f["min_price"])
     ).fillna(False)
+    d["rs_rank"] = rs_rank.reindex(d.index) if rs_rank is not None else np.nan
+    if f.get("rs_rank_min") is not None:
+        d["eligible"] = d["eligible"] & (d["rs_rank"] >= f["rs_rank_min"]).fillna(False)
 
     # --- Setup 1: Ausbruch -------------------------------------------------
     hh = d["high"].shift(1).rolling(sb["lookback"], min_periods=sb["lookback"]).max()
@@ -113,14 +124,17 @@ def prepare(df: pd.DataFrame, index_df: pd.DataFrame, cfg: dict, min_turnover: f
 
 
 def signal_rows(d: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    """Alle Signaltage mit Setup, Stop und Ziel. Ausbruch hat Vorrang."""
+    """Alle Signaltage mit Setup, Stop und Ziel. Ausbruch hat Vorrang.
+    Mit nachgezogenem Stop (exits.trail_atr) gibt es kein festes Ziel."""
     tr = cfg["setups"]["breakout"]["target_r"]
+    trailing = cfg["exits"].get("trail_atr") is not None
     out = []
     pos = np.flatnonzero(d["sig_breakout"].to_numpy() | d["sig_pullback"].to_numpy())
     for p in pos:
         row = d.iloc[p]
         if row["sig_breakout"]:
-            out.append((p, "Ausbruch", row["b_stop"], np.nan, tr))
+            out.append((p, "Ausbruch", row["b_stop"], np.nan, np.nan if trailing else tr))
         else:
-            out.append((p, "Rücksetzer", row["p_stop"], row["p_target"], np.nan))
+            target = np.nan if trailing else row["p_target"]
+            out.append((p, "Rücksetzer", row["p_stop"], target, np.nan))
     return pd.DataFrame(out, columns=["pos", "setup", "stop", "target", "target_r"])

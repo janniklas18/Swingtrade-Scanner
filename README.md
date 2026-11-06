@@ -49,6 +49,43 @@ etwa 15–25 Minuten). Danach liegt der Report unter
 `https://<dein-name>.github.io/swing-scanner/backtests/` und zusätzlich als
 Download beim Workflow-Lauf.
 
+## Varianten und Finaltest
+
+Weil die Basis-Regeln im ersten Test keinen Vorteil zeigten, gibt es vier
+Varianten (in `config/strategy.yaml` unter `variants`):
+
+| Variante | Änderung |
+| --- | --- |
+| A: Basis | bisherige Regeln |
+| B: Nur Ausbrüche | ohne Rücksetzer-Setup |
+| C: Nachgezogener Stop | wie B, aber kein festes Ziel: Stop folgt dem höchsten Schluss mit 3 ATR Abstand, Haltedauer bis 60 Tage |
+| D: Relative Stärke | wie C, aber nur die stärksten 20 % der Aktien (6-Monats-Entwicklung) |
+
+**Ablauf:**
+
+1. Actions → Backtest → Run workflow → Modus **varianten**, Markt **both**.
+   Verglichen wird nur bis Ende 2021. Die Auswahlregel steht vorab fest:
+   höchste Rendite nach Steuern im Schnitt über DE und US, sofern die
+   Erwartung je Trade in beiden Märkten positiv ist.
+2. Danach Modus **finaltest** (Variante `auto`). Die gewählte Variante wird
+   auf Aktien aus der Schweiz, Frankreich und den Niederlanden geprüft, die nie
+   zur Entwicklung genutzt wurden – dort zählt der ganze Zeitraum als Prüfung.
+   Zusätzlich gibt es Reports für DE und US.
+
+Wichtig: Nach dem Finaltest nicht mehr an den Regeln drehen und erneut testen.
+Sonst wird auch der frische Markt zum Trainingsmaterial.
+
+## Steuern
+
+Jeder Report vergleicht die Strategie nach Steuern mit einem ETF inklusive
+Dividenden (DAX-ETF, S&P-500-ETF bzw. Euro-Stoxx-50-ETF):
+
+- Strategie: 26,375 % Abgeltungsteuer inkl. Soli auf die realisierten Gewinne
+  jedes Jahres, Verluste werden vorgetragen.
+- ETF: Steuer erst beim Verkauf am Ende, mit 30 % Teilfreistellung.
+- Nicht berücksichtigt: Kirchensteuer, Sparer-Pauschbetrag, Vorabpauschale,
+  Wechselkurse.
+
 ## Report lesen
 
 - **R** = Vielfaches des Risikos. +1 R heißt: so viel gewonnen, wie beim Stop
@@ -68,6 +105,9 @@ Download beim Workflow-Lauf.
   Ergebnisse sind eher zu gut).
 - Termine der Quartalszahlen liefert Yahoo nicht für alle deutschen Werte; der
   Report zeigt, für wie viele sie vorlagen.
+- Testmarkt Europa: SMI mit Stand nach der Indexanpassung vom 21.09.2026,
+  CAC 40 und AEX mit Stand Herbst 2026. Schweizer Aktien werden ohne
+  Wechselkurs in derselben Simulation wie Euro-Aktien geführt.
 - Die SDAX-Liste hat den Stand Dezember 2025 und sollte gelegentlich
   aktualisiert werden (`config/universes/sdax.csv`).
 
@@ -76,6 +116,8 @@ Download beim Workflow-Lauf.
 ```bash
 pip install -r requirements.txt
 python run_backtest.py --market de                      # echte Daten
+python run_backtest.py --mode varianten --market both   # Variantenvergleich
+python run_backtest.py --mode finaltest                 # gewählte Variante prüfen
 python run_backtest.py --market de --source synthetic   # Test ohne Internet
 python -m pytest -q
 ```

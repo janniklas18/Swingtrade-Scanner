@@ -1,0 +1,147 @@
+{
+  "file": "2026-11-06_1009_de.html",
+  "label": "Deutschland (DAX, MDAX, SDAX)",
+  "date": "06.11.2026 10:09",
+  "source": "yahoo",
+  "n_oos": 360,
+  "exp_oos": "-0,06 R",
+  "verdict": "Kein Vorteil erkennbar",
+  "stats": {
+    "all": {
+      "n": 952,
+      "hit_rate": 0.4432773109243697,
+      "avg_win": 1.38102936546854,
+      "avg_loss": -1.0177728596793862,
+      "expectancy": 0.04556174012358102,
+      "ci_low": -0.04547345023562678,
+      "ci_high": 0.13612086935806048,
+      "profit_factor": 1.0804100839881114,
+      "total_r": 43.37477659764913
+    },
+    "is": {
+      "n": 592,
+      "hit_rate": 0.4780405405405405,
+      "avg_win": 1.3024017206862055,
+      "avg_loss": -0.9822277255809104,
+      "expectancy": 0.10991776984745746,
+      "ci_low": 0.00772225517152984,
+      "ci_high": 0.21633563173121367,
+      "profit_factor": 1.2143971197533752,
+      "total_r": 65.07131974969482
+    },
+    "oos": {
+      "n": 360,
+      "hit_rate": 0.3861111111111111,
+      "avg_win": 1.5411129875793355,
+      "avg_loss": -1.0674717123329112,
+      "expectancy": -0.06026817542234918,
+      "ci_low": -0.22507777830012304,
+      "ci_high": 0.11119471998948094,
+      "profit_factor": 0.9080309086707636,
+      "total_r": -21.696543152045702
+    }
+  },
+  "random_oos_mean": -0.0024477333983546705,
+  "portfolio": {
+    "all": {
+      "total_return": 0.1261716084651905,
+      "cagr": 0.008482727902036302,
+      "max_dd": -0.21952442236728065,
+      "volatility": 0.10190769272595289,
+      "sharpe": 0.13337365555875416
+    },
+    "is": {
+      "total_return": 0.1066079093650345,
+      "cagr": 0.011052794224676754,
+      "max_dd": -0.1708297998841224,
+      "volatility": 0.09900501361259745,
+      "sharpe": 0.1603566376385095
+    },
+    "oos": {
+      "total_return": 0.015360689792510929,
+      "cagr": 0.003154193488702939,
+      "max_dd": -0.19302986150858925,
+      "volatility": 0.10723443654853548,
+      "sharpe": 0.08240496227677382
+    }
+  },
+  "config": {
+    "backtest": {
+      "start": "2012-01-01",
+      "in_sample_end": "2021-12-31",
+      "initial_capital": 100000,
+      "risk_per_trade": 0.01,
+      "max_positions": 5,
+      "max_per_sector": 2,
+      "max_position_pct": 0.25,
+      "random_benchmark_runs": 20,
+      "bootstrap_runs": 2000
+    },
+    "markets": {
+      "de": {
+        "label": "Deutschland (DAX, MDAX, SDAX)",
+        "universes": [
+          "dax",
+          "mdax",
+          "sdax"
+        ],
+        "index": "^GDAXI",
+        "index_label": "DAX",
+        "currency": "EUR",
+        "min_turnover": 5000000,
+        "cost_per_side_bps": 10,
+        "commission_per_trade": 1.0
+      },
+      "us": {
+        "label": "USA (S&P 500)",
+        "universes": [
+          "sp500"
+        ],
+        "index": "^GSPC",
+        "index_label": "S&P 500",
+        "currency": "USD",
+        "min_turnover": 20000000,
+        "cost_per_side_bps": 5,
+        "commission_per_trade": 1.0
+      }
+    },
+    "filters": {
+      "regime_sma": 200,
+      "trend_fast_sma": 50,
+      "trend_slow_sma": 200,
+      "atr_period": 14,
+      "atr_pct_min": 1.5,
+      "atr_pct_max": 6.0,
+      "min_price": 5.0,
+      "earnings_blackout": true
+    },
+    "setups": {
+      "breakout": {
+        "enabled": true,
+        "lookback": 20,
+        "volume_ratio_min": 1.5,
+        "close_position_min": 0.6,
+        "stop_atr": 2.0,
+        "target_r": 2.0,
+        "resistance_lookback": 252
+      },
+      "pullback": {
+        "enabled": true,
+        "rsi_period": 14,
+        "rsi_max": 45,
+        "rsi_window": 3,
+        "near_sma": 20,
+        "near_sma_atr": 1.0,
+        "stop_lookback": 5,
+        "stop_buffer_atr": 0.25,
+        "max_stop_atr": 3.0,
+        "target_lookback": 20
+      }
+    },
+    "exits": {
+      "min_crv": 2.0,
+      "time_stop_days": 20,
+      "breakeven_after_r": null
+    }
+  }
+}
